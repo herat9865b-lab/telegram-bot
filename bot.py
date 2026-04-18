@@ -1,53 +1,79 @@
 import telebot
 import requests
 
-TOKE8333783224:AAGQJWzei5htTvJArTmdSX0_KmtEU8JBxQs
+# 🔴 توکن ربات تلگرام
+TOKEN = 8681581969:AAH5187dNms3ANLj3SoB5HpRKnI78ZZtO1I
+
+# 🔴 API هوش مصنوعی
+OPENAI_API_KEY = "PUT_YOUR_OPENAI_KEY"
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(content_types=['text'])
-def reply(message):
+# =========================
+# 🔹 جواب سوال (چت)
+def chat_ai(text):
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": "تو یک ربات فارسی هستی، کوتاه و خوب جواب بده"},
+            {"role": "user", "content": text}
+        ]
+    }
+
+    res = requests.post(url, headers=headers, json=data)
+    return res.json()["choices"][0]["message"]["content"]
+
+# =========================
+# 🔹 ساخت عکس
+def generate_image(prompt):
+    url = "https://api.openai.com/v1/images/generations"
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "gpt-image-1",
+        "prompt": prompt,
+        "size": "1024x1024"
+    }
+
+    res = requests.post(url, headers=headers, json=data)
+    return res.json()["data"][0]["url"]
+
+# =========================
+# 🔹 شروع
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "سلام 👋\n\nبرای سوال بنویس ✍️\nبرای عکس بنویس:\n/تصویر گربه")
+
+# =========================
+# 🔹 دریافت پیام
+@bot.message_handler(func=lambda message: True)
+def handle(message):
     text = message.text
 
-    # ساخت عکس
-    if text.startswith("/img"):
-        prompt = text.replace("/img", "")
+    try:
+        # اگر دستور عکس بود
+        if text.startswith("/تصویر"):
+            prompt = text.replace("/تصویر", "").strip()
+            bot.reply_to(message, "در حال ساخت عکس... 🎨")
+            img_url = generate_image(prompt)
+            bot.send_photo(message.chat.id, img_url)
 
-        url = "https://api.openai.com/v1/images"
-        headers = {
-            "Authorization": f"Bearer {OPENAI_API}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "gpt-image-1",
-            "prompt": prompt,
-            "size": "1024x1024"
-        }
+        else:
+            reply = chat_ai(text)
+            bot.reply_to(message, reply)
 
-        try:
-            res = requests.post(url, headers=headers, json=data)
-            image_url = res.json()["data"][0]["url"]
-            bot.send_photo(message.chat.id, image_url)
-        except:
-            bot.reply_to(message, "خطا در ساخت عکس")
+    except Exception as e:
+        bot.reply_to(message, "خطا ❌ دوباره امتحان کن")
 
-    # جواب سوال
-    else:
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {OPENAI_API}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "gpt-4o-mini",
-            "messages": [{"role": "user", "content": text}]
-        }
-
-        try:
-            res = requests.post(url, headers=headers, json=data)
-            answer = res.json()["choices"][0]["message"]["content"]
-            bot.reply_to(message, answer)
-        except:
-            bot.reply_to(message, "خطا شد دوباره امتحان کن")
-
+# =========================
+print("Bot is running...")
 bot.infinity_polling()
